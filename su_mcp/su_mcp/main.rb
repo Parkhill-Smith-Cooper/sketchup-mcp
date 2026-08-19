@@ -1850,11 +1850,43 @@ module SU_MCP
 
   unless file_loaded?(__FILE__)
     @server = Server.new
-    
+
+    SETTINGS_SECTION = "SU_MCP"
+    AUTOSTART_KEY = "autostart"
+
+    # On by default: in a managed rollout the server has to be listening without
+    # the user knowing the menu exists. Users can still opt out per machine.
+    def self.autostart?
+      Sketchup.read_default(SETTINGS_SECTION, AUTOSTART_KEY, true)
+    end
+
+    def self.autostart=(enabled)
+      Sketchup.write_default(SETTINGS_SECTION, AUTOSTART_KEY, enabled)
+    end
+
     menu = UI.menu("Plugins").add_submenu("MCP Server")
     menu.add_item("Start Server") { @server.start }
     menu.add_item("Stop Server") { @server.stop }
-    
+    menu.add_separator
+    autostart_item = menu.add_item("Start Automatically") {
+      self.autostart = !autostart?
+    }
+    menu.set_validation_proc(autostart_item) {
+      autostart? ? MF_CHECKED : MF_UNCHECKED
+    }
+
+    # Defer past extension load so the UI is ready. A failure here must never
+    # stop the extension from finishing loading, so swallow and log.
+    if autostart?
+      UI.start_timer(0, false) {
+        begin
+          @server.start
+        rescue StandardError => e
+          puts "MCP: autostart failed: #{e.message}"
+        end
+      }
+    end
+
     file_loaded(__FILE__)
   end
 end 

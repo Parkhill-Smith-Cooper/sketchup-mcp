@@ -1,0 +1,54 @@
+{
+  "name": "@parkhill/mcp-server-for-sketchup",
+  "version": "1.0.0",
+  "description": "MCP server for interacting with Trimble SketchUp through AI assistants",
+  "type": "module",
+  "bin": {
+    "mcp-server-for-sketchup": "./build/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "clean": "rimraf build",
+    "prebuild": "npm run clean",
+    "build": "tsc",
+    "test": "npm run build && node --test \"build/**/*.test.js\"",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "build",
+    "!build/**/*.test.js",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Parkhill-Smith-Cooper/sketchup-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Parkhill-Smith-Cooper/sketchup-mcp/issues"
+  },
+  "homepage": "https://github.com/Parkhill-Smith-Cooper/sketchup-mcp#readme",
+  "keywords": [
+    "mcp",
+    "sketchup",
+    "trimble",
+    "claude",
+    "ai",
+    "bim",
+    "architecture"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.7.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "rimraf": "^5.0.10",
+    "typescript": "^5.8.2"
+  }
+}

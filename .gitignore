@@ -13,6 +13,10 @@ env/
 venv/
 ENV/
 
+# Node / TypeScript MCP server
+node_modules/
+server/build/
+
 # Ruby
 *.gem
 *.rbc

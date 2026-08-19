@@ -1,0 +1,93 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write # npm provenance via OIDC trusted publishing
+
+jobs:
+  npm-publish:
+    name: Publish MCP server to npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Verify tag matches server/package.json version
+        working-directory: server
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "Tag version '$tag' does not match server/package.json version '$pkg'." >&2
+            exit 1
+          fi
+
+      - name: Install
+        working-directory: server
+        run: npm ci
+
+      - name: Test
+        working-directory: server
+        run: npm test
+
+      - name: Publish
+        working-directory: server
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            npm publish --access public
+          else
+            npm publish --provenance --access public
+          fi
+
+  rbz:
+    name: Build SketchUp extension (.rbz)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+
+      - name: Install packaging dependency
+        run: gem install rubyzip
+
+      - name: Syntax-check the extension
+        run: |
+          ruby -c su_mcp/su_mcp.rb
+          ruby -c su_mcp/su_mcp/main.rb
+
+      - name: Verify extension versions agree
+        run: |
+          json="$(ruby -rjson -e 'puts JSON.parse(File.read("su_mcp/extension.json"))["version"]')"
+          loader="$(grep -oP "ext\.version\s*=\s*'\K[^']+" su_mcp/su_mcp.rb)"
+          packer="$(grep -oP "VERSION\s*=\s*'\K[^']+" su_mcp/package.rb)"
+          echo "extension.json=$json su_mcp.rb=$loader package.rb=$packer"
+          if [ "$json" != "$loader" ] || [ "$json" != "$packer" ]; then
+            echo "Extension version strings disagree." >&2
+            exit 1
+          fi
+
+      - name: Build .rbz
+        working-directory: su_mcp
+        run: ruby package.rb
+
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: su_mcp/*.rbz
+          generate_release_notes: true
