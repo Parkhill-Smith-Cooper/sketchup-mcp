@@ -47,7 +47,7 @@ infrastructure as the Revit integration.
 LibreChat
   │  streamable-http, x-user-id: {{LIBRECHAT_USER_EMAIL}}
   ▼
-chat-ui backend (Azure App Service)   /mcp/sketchup  and  /mcp/sketchup-admin
+chat-ui backend (Azure App Service)   /mcp/sketchup
   │  per-user long-poll  /api/connector/*   (appId=sketchup)
   ▼
 Parkhill desktop connector (MSI, Scheduled Task, Entra sign-in)
@@ -83,8 +83,10 @@ Lengths are in inches, angles in degrees. See [`server/README.md`](server/README
 for parameters and details.
 
 > `eval_ruby` executes arbitrary Ruby in the user's SketchUp process and blocks
-> its UI thread with no cancel path. In the LibreChat deployment it is denied on
-> the standard endpoint and permitted only on the admin endpoint, for listed users.
+> its UI thread with no cancel path. It is available to everyone: each user drives
+> only the SketchUp on their own workstation, so the reach is the machine they are
+> already sitting at. To restrict it again, set `CHAT_TOOL_DENYLIST_SKETCHUP` on
+> the backend — no code change or redeploy of this repo required.
 
 ## Example prompts
 

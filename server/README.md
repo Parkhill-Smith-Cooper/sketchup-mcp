@@ -69,16 +69,21 @@ See the repository README.
 | `create_mortise_tenon` | Mortise-and-tenon joint between two boards. |
 | `create_dovetail` | Dovetail joint between two boards. |
 | `create_finger_joint` | Finger (box) joint between two boards. |
-| `eval_ruby` | Execute arbitrary Ruby in the SketchUp process. Privileged. |
+| `eval_ruby` | Execute arbitrary Ruby in the SketchUp process. See the note below. |
 
 Lengths are in inches, angles in degrees.
 
 ### About `eval_ruby`
 
 It runs arbitrary Ruby with full SketchUp API access in the user's process, and
-it blocks SketchUp's UI thread with no cancel path. It is always registered here,
-but in the Parkhill deployment access is enforced on the backend: the standard
-endpoint denies it and only an admin endpoint permits it, for listed users.
+it blocks SketchUp's UI thread with no cancel path — a long or infinite loop
+hangs SketchUp with no way to cancel.
+
+In the Parkhill deployment it is available to every user, on the single
+`/mcp/sketchup` endpoint. Each user reaches only the SketchUp running on their
+own workstation, so the reach is the machine they are already sitting at. The
+backend can withdraw it without a code change by setting
+`CHAT_TOOL_DENYLIST_SKETCHUP=eval_ruby`.
 
 ## Error handling
 
