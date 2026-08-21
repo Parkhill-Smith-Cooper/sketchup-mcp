@@ -47,6 +47,17 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          name="$(node -p 'require("./package.json").name')"
+          version="$(node -p 'require("./package.json").version')"
+
+          # A tag may exist only to publish a new .rbz, with the npm package
+          # unchanged. Republishing the same version is an error, so skip it and
+          # let the release proceed rather than failing the whole run.
+          if npm view "$name@$version" version >/dev/null 2>&1; then
+            echo "$name@$version is already on npm; skipping publish."
+            exit 0
+          fi
+
           if [ -n "$NPM_TOKEN" ]; then
             npm publish --access public
           else
@@ -86,8 +97,33 @@ jobs:
         working-directory: su_mcp
         run: ruby package.rb
 
+      - name: Collect versions for the release notes
+        id: versions
+        run: |
+          echo "ext=$(ruby -rjson -e 'puts JSON.parse(File.read("su_mcp/extension.json"))["version"]')" >> "$GITHUB_OUTPUT"
+          echo "npm=$(node -p 'require("./server/package.json").version')" >> "$GITHUB_OUTPUT"
+          echo "rbz=$(basename su_mcp/*.rbz)" >> "$GITHUB_OUTPUT"
+
+      # The tag tracks the npm package, but the extension carries its own
+      # version, so spell both out or the asset name looks like a mismatch.
       - name: Attach to release
         uses: softprops/action-gh-release@v2
         with:
           files: su_mcp/*.rbz
           generate_release_notes: true
+          append_body: true
+          body: |
+            ## Install
+
+            **SketchUp extension ${{ steps.versions.outputs.ext }}** — download
+            `${{ steps.versions.outputs.rbz }}` below, then in SketchUp:
+            **Window → Extension Manager → Install Extension**. Restart SketchUp.
+            The MCP server starts automatically; control it from
+            **Extensions → MCP Server**.
+
+            **MCP server ${{ steps.versions.outputs.npm }}** — published to npm as
+            `@parkhill/mcp-server-for-sketchup`. Nothing to download: the Parkhill
+            desktop connector fetches it, and Claude Desktop users get it via `npx`.
+
+            The extension and the npm package are versioned independently, so the
+            `.rbz` filename will not match the tag.
