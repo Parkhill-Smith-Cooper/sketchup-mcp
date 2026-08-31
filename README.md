@@ -74,10 +74,15 @@ use **Extensions > MCP Server**, which offers Start Server, Stop Server, and a
 
 ## Tools
 
-`sketchup_status`, `get_selection`, `create_component`, `delete_component`,
-`transform_component`, `set_material`, `export_scene`, `boolean_operation`,
-`chamfer_edges`, `fillet_edges`, `create_mortise_tenon`, `create_dovetail`,
-`create_finger_joint`, and the privileged `eval_ruby`.
+`sketchup_status`, `get_selection`, `capture_view`, `create_component`,
+`delete_component`, `transform_component`, `set_material`, `export_scene`,
+`boolean_operation`, `chamfer_edges`, `fillet_edges`, `create_mortise_tenon`,
+`create_dovetail`, `create_finger_joint`, and the privileged `eval_ruby`.
+
+`capture_view` renders the viewport and hands it back as an image, so the
+assistant can see the model it is being asked to work on. It needs no extension
+update: the capture ships in the npm package. See
+[`server/README.md`](server/README.md#about-capture_view).
 
 Lengths are in inches, angles in degrees. See [`server/README.md`](server/README.md)
 for parameters and details.

@@ -1,6 +1,6 @@
 {
   "name": "@parkhill/mcp-server-for-sketchup",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "MCP server for interacting with Trimble SketchUp through AI assistants",
   "type": "module",
   "bin": {

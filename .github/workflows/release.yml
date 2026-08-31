@@ -10,8 +10,40 @@ permissions:
   id-token: write # npm provenance via OIDC trusted publishing
 
 jobs:
+  # capture_view generates Ruby and sends it through eval_ruby, so a syntax
+  # error there would surface only as a failed tool call on a user's
+  # workstation. The publish waits on this.
+  capture-script:
+    name: Syntax-check the capture_view Ruby
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+
+      - name: Build
+        working-directory: server
+        run: |
+          npm ci
+          npm run build
+
+      - name: Check every generated variant
+        working-directory: server
+        run: |
+          node scripts/print-capture-ruby.mjs > "$RUNNER_TEMP/capture.rb"
+          ruby -c "$RUNNER_TEMP/capture.rb"
+
   npm-publish:
     name: Publish MCP server to npm
+    needs: capture-script
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
