@@ -58,6 +58,7 @@ See the repository README.
 | --- | --- |
 | `sketchup_status` | Read-only reachability probe. Call before a multi-step plan. |
 | `get_selection` | List currently selected entities with ids and types. |
+| `capture_view` | Render the viewport and return it as an image, so the model can see it. |
 | `create_component` | Create a cube, cylinder, sphere, or cone. |
 | `delete_component` | Delete an entity by id. |
 | `transform_component` | Move, rotate, or scale an entity. |
@@ -72,6 +73,34 @@ See the repository README.
 | `eval_ruby` | Execute arbitrary Ruby in the SketchUp process. See the note below. |
 
 Lengths are in inches, angles in degrees.
+
+### About `capture_view`
+
+Returns an MCP image block, so an assistant can look at the model rather than
+reason about entity ids alone: what the user means by "this", whether a cut
+landed where it should, what a model it has never seen actually contains.
+
+| Argument | Default | Notes |
+| --- | --- | --- |
+| `view` | `current` | `current`, `iso`, or `top`/`bottom`/`front`/`back`/`left`/`right`. Axis views render orthographic. |
+| `zoom` | `none` | `none` keeps the user's framing; `extents` fits the model; `selection` fits the selection. |
+| `style` | `current` | `shaded`, `textured`, `wireframe`, `hidden_line`, or `xray` for interior geometry. |
+| `width` / `height` | 1200 x 900 | 256-2000 px. |
+| `format` | `png` | `jpg` for a smaller payload. |
+| `keep_camera` | `false` | Leave the camera where the capture put it, so the user sees the same framing. |
+
+The camera and render style are restored afterwards unless `keep_camera` is set,
+so a look is read-only from the user's point of view.
+
+The capture is generated as a Ruby script and sent over the socket as an
+`eval_ruby` command, rather than as a handler inside the extension: users install
+the `.rbz` by hand, so shipping the whole capture in this package makes an npm
+publish the entire rollout. Two consequences worth knowing:
+
+- It works with extension 1.7.0 and any later version, with no reinstall.
+- Denylisting the `eval_ruby` *tool* does not disable it. The denylist decides
+  which tools the model can call; `capture_view` sends a fixed script of its own
+  and takes no code from the model, so it does not hand back arbitrary eval.
 
 ### About `eval_ruby`
 
@@ -121,7 +150,14 @@ npm test
 
 `npm test` covers the socket layer against a mock that mimics the Ruby
 extension's one-request-per-connection behaviour, including responses split
-across TCP chunks.
+across TCP chunks, and `capture_view` end to end against a stand-in render.
+
+The Ruby that `capture_view` generates only runs inside SketchUp, so CI
+syntax-checks it separately and the publish waits on that:
+
+```bash
+node scripts/print-capture-ruby.mjs > capture.rb && ruby -c capture.rb
+```
 
 To drive the tools by hand against a live SketchUp:
 

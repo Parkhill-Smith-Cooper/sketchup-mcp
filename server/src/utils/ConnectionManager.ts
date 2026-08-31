@@ -9,6 +9,8 @@ import {
   type SketchupSuccess,
 } from "./SocketClient.js";
 
+export type { SketchupSuccess };
+
 /**
  * Serializes every call to SketchUp. The Ruby accept loop runs inside a
  * `UI.start_timer(0.1)` tick and handles one client per tick (main.rb:49-113),
@@ -46,13 +48,21 @@ function text(body: string, isError = false): ToolResult {
 }
 
 /**
+ * The text body the Ruby put in `content[0]` (main.rb:252-262). Tools that need
+ * structured output have the Ruby return JSON here and parse it themselves.
+ */
+export function firstText(result: SketchupSuccess): string | undefined {
+  const first = Array.isArray(result.content) ? result.content[0] : undefined;
+  return typeof first?.text === "string" ? first.text : undefined;
+}
+
+/**
  * Present the Ruby `result` to the model. On success the Ruby wraps output as
  * `{ content: [{type:'text', text}], success, resourceId }` (main.rb:252-262);
  * surface the text plus the entity id, which callers need for follow-up edits.
  */
 function formatSuccess(result: SketchupSuccess): ToolResult {
-  const first = Array.isArray(result.content) ? result.content[0] : undefined;
-  const body = typeof first?.text === "string" ? first.text : undefined;
+  const body = firstText(result);
 
   const payload: Record<string, unknown> = { success: true };
   if (body !== undefined) payload.result = body;
@@ -70,36 +80,55 @@ function formatSuccess(result: SketchupSuccess): ToolResult {
 }
 
 /**
+ * Run one SketchUp call under the lock and hand back the raw Ruby `result`.
+ * Throws the typed socket errors, so callers must pair it with
+ * `toolErrorResult`. Only for tools that need the payload itself rather than
+ * its text rendering (e.g. to build an image content block); everything else
+ * should use `runSketchupTool`.
+ */
+export function callSketchup(
+  toolName: string,
+  args: Record<string, unknown>,
+): Promise<SketchupSuccess> {
+  return withSketchupLock(() => sendSketchupCommand(toolName, args));
+}
+
+/**
+ * Render a failed call as the tool result the model sees, with the actionable
+ * prefix (SKETCHUP_NOT_RUNNING / SKETCHUP_BUSY / SKETCHUP_ERROR) it can branch
+ * on instead of the request just failing.
+ */
+export function toolErrorResult(toolName: string, error: unknown): ToolResult {
+  if (error instanceof SketchupUnavailableError) {
+    console.error(`[${toolName}] SketchUp unavailable: ${error.message}`);
+    return text(NOT_RUNNING_GUIDANCE, true);
+  }
+  if (error instanceof SketchupBusyError) {
+    console.error(`[${toolName}] SketchUp busy: ${error.message}`);
+    return text(BUSY_GUIDANCE, true);
+  }
+  const message =
+    error instanceof SketchupToolError || error instanceof Error
+      ? error.message
+      : String(error);
+  console.error(`[${toolName}] SketchUp error: ${message}`);
+  return text(`SKETCHUP_ERROR: ${toolName} failed: ${message}`, true);
+}
+
+/**
  * Run one SketchUp tool call and convert every outcome into a tool result.
  *
  * Failures come back as `isError` results rather than thrown exceptions, so the
- * model sees the actionable prefix (SKETCHUP_NOT_RUNNING / SKETCHUP_BUSY /
- * SKETCHUP_ERROR) and can branch on it instead of the request just failing.
+ * model sees the actionable prefix and can branch on it.
  */
 export async function runSketchupTool(
   toolName: string,
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   try {
-    const result = await withSketchupLock(() =>
-      sendSketchupCommand(toolName, args),
-    );
-    return formatSuccess(result);
+    return formatSuccess(await callSketchup(toolName, args));
   } catch (error) {
-    if (error instanceof SketchupUnavailableError) {
-      console.error(`[${toolName}] SketchUp unavailable: ${error.message}`);
-      return text(NOT_RUNNING_GUIDANCE, true);
-    }
-    if (error instanceof SketchupBusyError) {
-      console.error(`[${toolName}] SketchUp busy: ${error.message}`);
-      return text(BUSY_GUIDANCE, true);
-    }
-    const message =
-      error instanceof SketchupToolError || error instanceof Error
-        ? error.message
-        : String(error);
-    console.error(`[${toolName}] SketchUp error: ${message}`);
-    return text(`SKETCHUP_ERROR: ${toolName} failed: ${message}`, true);
+    return toolErrorResult(toolName, error);
   }
 }
 

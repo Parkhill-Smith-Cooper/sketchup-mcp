@@ -5,7 +5,7 @@ import { registerTools } from "./tools/register.js";
 import { SKETCHUP_HOST, SKETCHUP_PORT } from "./utils/SocketClient.js";
 
 export const SERVER_NAME = "mcp-server-for-sketchup";
-export const SERVER_VERSION = "1.0.0";
+export const SERVER_VERSION = "1.1.0";
 
 const server = new McpServer({
   name: SERVER_NAME,
