@@ -65,6 +65,14 @@ jobs:
             exit 1
           fi
 
+      # OIDC trusted publishing is only understood by npm 11.5.1+, and
+      # setup-node's Node 22 ships npm 10.9.x, which fails with ENEEDAUTH even
+      # with the trusted publisher configured and id-token: write granted.
+      - name: Use an npm that can exchange the OIDC token
+        run: |
+          npm install -g npm@latest
+          npm --version
+
       - name: Install
         working-directory: server
         run: npm ci
